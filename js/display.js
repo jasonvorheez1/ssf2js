@@ -642,12 +642,8 @@ class MC extends DO {
 // engine internals must not shadow script variables such as `total` or `path`.
 const MC_API = ['play', 'stop', 'gotoAndPlay', 'gotoAndStop', 'nextFrame', 'prevFrame', 'attachMovie', 'createEmptyMovieClip', 'duplicateMovieClip', 'removeMovieClip', 'swapDepths', 'getDepth', 'getNextHighestDepth', 'getInstanceAtDepth', 'hitTest', 'getBounds', 'localToGlobal', 'globalToLocal', 'startDrag', 'stopDrag', 'getBytesLoaded', 'getBytesTotal', 'loadMovie', 'unloadMovie', 'getURL', 'setMask', 'createTextField', 'toString'];
 const MC_INTERNAL = new Set([...Object.getOwnPropertyNames(MC.prototype), ...Object.getOwnPropertyNames(DO.prototype)].filter(n => !MC_API.includes(n)));
-// The converted Flash library writes extensions onto MovieClip.prototype.
-// Give that prototype the same extension storage used by live movie clips.
-MC.prototype.vars = Object.create(null);
 function mcProto(n) {
   if (MC_INTERNAL.has(n)) return undefined;
-  if (Object.prototype.hasOwnProperty.call(MC.prototype.vars, n)) return MC.prototype.vars[n];
   const d = Object.getOwnPropertyDescriptor(MC.prototype, n);
   return d && typeof d.value === 'function' ? d.value : undefined;
 }

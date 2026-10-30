@@ -1,18 +1,29 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#06081a">
-  <title>SSF2 JS</title>
-  <link rel="stylesheet" href="style.css">
-  <script type="module" src="app.js"></script>
+<meta charset="utf-8">
+<title>Super Smash Flash - rewritten in JavaScript</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; background: #06081a; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  canvas { background: #000; display: block; outline: none; }
+  #boot { position: fixed; left: 0; right: 0; top: 46%; text-align: center; color: #fff; font: 16px Arial, sans-serif; }
+  #bar { width: 260px; height: 6px; background: #223; margin: 10px auto; border-radius: 3px; overflow: hidden; }
+  #bar i { display: block; height: 100%; width: 0; background: #ffd54a; }
+</style>
 </head>
 <body>
-  <canvas id="game" width="700" height="400" tabindex="0" aria-label="Super Smash Flash 2 game"></canvas>
-  <div id="boot" role="status" aria-live="polite">
-    <div id="bootmsg">Loading...</div>
-    <div id="bar"><i id="barfill"></i></div>
-  </div>
+<canvas id="game" width="700" height="400" tabindex="0"></canvas>
+<div id="boot"><div id="bootmsg">Loading...</div><div id="bar"><i id="barfill"></i></div></div>
+<script>
+  // load scripts in order (cache-busted while developing)
+  window.BUILD = Date.now();
+  (async () => {
+    for (const f of ['rt', 'display', 'audio', 'flash', 'boot', 'debug']) {
+      await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'js/' + f + '.js?v=' + window.BUILD; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
+    }
+  })();
+</script>
 </body>
 </html>
