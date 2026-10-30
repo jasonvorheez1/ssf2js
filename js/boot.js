@@ -3,10 +3,37 @@
   const msg = document.getElementById('bootmsg'), fill = document.getElementById('barfill');
   const prog = (t, f) => { msg.textContent = t; fill.style.width = Math.round(f * 100) + '%'; };
   prog('Loading library...', 0.05);
-  const lib = await (await fetch('assets/lib/lib.json?v=' + window.BUILD)).json();
+  const libController = new AbortController();
+  const libTimer = setTimeout(() => libController.abort(), 60000);
+  const libSlowTimer = setTimeout(() => prog('Still loading library...', 0.1), 12000);
+  let libResponse;
+  try {
+    libResponse = await fetch('assets/lib/lib.json', { signal: libController.signal });
+  } finally {
+    clearTimeout(libTimer);
+    clearTimeout(libSlowTimer);
+  }
+  if (!libResponse.ok) throw new Error(`Library request failed (${libResponse.status})`);
+  const lib = await libResponse.json();
   RT.lib = lib;
   prog('Loading converted scripts...', 0.3);
-  await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'assets/lib/code.js?v=' + window.BUILD; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  await new Promise((res, rej) => {
+    const script = document.createElement('script');
+    script.src = 'assets/lib/code.js';
+    const slowTimer = setTimeout(() => prog('Still loading scripts...', 0.5), 15000);
+    const timer = setTimeout(() => {
+      script.remove();
+      clearTimeout(slowTimer);
+      rej(new Error('Converted scripts took too long to load'));
+    }, 120000);
+    script.onload = () => { clearTimeout(slowTimer); clearTimeout(timer); res(); };
+    script.onerror = () => {
+      clearTimeout(slowTimer);
+      clearTimeout(timer);
+      rej(new Error('Could not load converted scripts'));
+    };
+    document.head.appendChild(script);
+  });
   prog('Starting...', 0.9);
 
   // lazy bitmap loading
@@ -70,6 +97,23 @@
   }
   window.addEventListener('keydown', e => { if (['Enter', 'Space', 'Escape'].includes(e.code)) introSkip(); }, true);
   canvas.addEventListener('mousedown', () => { introSkip(); }, true);
+  // cheat code (Konami): unlock every fighter, stage and mode
+  const CHEAT = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65]; let cheatPos = 0;
+  function unlockAll() {
+    const so = A.gv(RT.root.scope, "savedata"), rec = so && so.data && so.data.records;
+    if (!rec) return;
+    for (const k of Object.keys(rec)) if (Array.isArray(rec[k]) && k !== 'controls' && k !== 'misc') rec[k][0] = true;
+    if (rec.misc) for (let i = 12; i < 16; i++) rec.misc[i] = true;
+    so.flush();
+    const t = document.createElement('div');
+    t.textContent = 'Everything unlocked!';
+    t.style.cssText = 'position:fixed;left:50%;top:12px;transform:translateX(-50%);padding:8px 16px;background:#000c;color:#fff;font:bold 16px sans-serif;border-radius:6px;z-index:9';
+    document.body.appendChild(t); setTimeout(() => t.remove(), 2500);
+  }
+  window.addEventListener('keydown', e => {
+    cheatPos = e.keyCode === CHEAT[cheatPos] ? cheatPos + 1 : (e.keyCode === CHEAT[0] ? 1 : 0);
+    if (cheatPos === CHEAT.length) { cheatPos = 0; unlockAll(); }
+  });
   const STEP = 1000 / FPS;
   let acc = 0, last = performance.now();
   function frame(now) {
@@ -77,6 +121,7 @@
     let steps = 0;
     while (acc >= STEP && steps < 4) { acc -= STEP; RT.tick(); steps++; }
     if (steps === 4) acc = 0;
+    const fm = RT.root.names.get('focusManager'); if (fm) fm.visibleV = false; // Flash's focus-rectangle button, drawn as a black box top-left
     const sc = fit();
     ctx.setTransform(sc, 0, 0, sc, 0, 0);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
@@ -86,4 +131,14 @@
   requestAnimationFrame(frame);
   window.RT = RT; window.A = A;
   window.addEventListener('beforeunload', () => { try { sessionStorage.setItem('ssf_unload', JSON.stringify({ log: RT.callLog || [], t: Date.now() })); } catch (e) { } });
-})().catch(e => { console.error(e); const m = document.getElementById('bootmsg'); if (m) m.textContent = 'Failed: ' + e; });
+})().catch(e => {
+  console.error('[startup]', e);
+  const boot = document.getElementById('boot');
+  const message = document.getElementById('bootmsg');
+  if (!boot || !message) return;
+  boot.classList.add('failed');
+  boot.style.display = 'block';
+  message.textContent = "Couldn't start. Click to reload.";
+  boot.title = String(e);
+  boot.onclick = () => window.location.reload();
+});

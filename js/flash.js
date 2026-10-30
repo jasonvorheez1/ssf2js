@@ -66,7 +66,14 @@
     getLocal(name) {
       const key = 'ssf_so_' + name; let data = {};
       try { const s = localStorage.getItem(key); if (s) data = JSON.parse(s); } catch (e) { }
-      const so = { data, onStatus: null, flush() { try { localStorage.setItem(key, JSON.stringify(so.data)); } catch (e) { } return true; }, clear() { so.data = {}; try { localStorage.removeItem(key); } catch (e) { } }, getSize() { return 1; } };
+      // saves from before unlocks existed have every fighter unlocked: relock the non-originals once
+      if (data.lockRev !== 2) {
+        data.lockRev = 2;
+        const rec = data.records;
+        if (rec) for (const k of ['blue', 'cloud', 'crono', 'gameandwatch', 'inuyasha', 'jigglypuff', 'lloyd', 'luigi', 'mewtwo', 'incredible', 'naruto', 'shadowa', 'supersonic', 'younglink', 'zero']) if (rec[k]) rec[k][0] = false;
+        try { localStorage.setItem(key, JSON.stringify(data)); } catch (e) { }
+      }
+      const so = { data, onStatus: null, flush() { try { localStorage.setItem(key, JSON.stringify(so.data)); } catch (e) { } return true; }, clear() { so.data = { lockRev: 2 }; try { localStorage.removeItem(key); } catch (e) { } }, getSize() { return 1; } };
       return so;
     },
   };
